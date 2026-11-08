@@ -1,0 +1,8 @@
+# Secrets: the client's real settings, including the GHCR token
+.env
+!.env.example
+
+# Client data
+backups/
+
+.DS_Store

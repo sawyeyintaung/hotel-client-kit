@@ -1,0 +1,51 @@
+name: myapp
+
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      retries: 20
+
+  # hotel-backend. Migrates the database to the newest schema on every start.
+  # No ports: only the frontend's server calls it, never the browser.
+  backend:
+    image: ghcr.io/${GHCR_OWNER}/hotel-backend:${APP_VERSION:-latest}
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      PORT: 8000
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Add BETTER_AUTH_SECRET to .env}
+      BETTER_AUTH_URL: http://backend:8000
+      # The address staff open in the browser. Logins from any other address
+      # are refused. Comma-separated for more than one.
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # hotel-frontend-next
+  frontend:
+    image: ghcr.io/${GHCR_OWNER}/hotel-frontend:${APP_VERSION:-latest}
+    restart: unless-stopped
+    environment:
+      API_URL: http://backend:8000/api
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:

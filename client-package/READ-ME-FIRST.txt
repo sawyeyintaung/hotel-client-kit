@@ -1,0 +1,48 @@
+MyApp - Setup guide
+===================
+
+You need: Windows 10 or 11 (64-bit), internet, about 10 GB free disk space.
+
+FIRST-TIME SETUP
+----------------
+1. Extract this folder to:  C:\MyApp
+   (Right-click the zip > Extract All > type C:\MyApp)
+
+2. Open C:\MyApp and double-click  install.bat
+   - If Windows shows "Windows protected your PC", click
+     "More info" > "Run anyway".
+
+3. If it says Docker Desktop needs installing, let it install, then:
+   a. Restart your computer.
+   b. Open "Docker Desktop" from the Start menu.
+   c. Click "Accept". You can skip signing in.
+   d. In Docker Desktop: Settings > General > tick
+      "Start Docker Desktop when you sign in".
+   e. Double-click install.bat again.
+
+4. When it finishes, MyApp opens in your browser.
+   A "MyApp" shortcut is placed on your desktop.
+
+EVERY DAY
+---------
+- Double-click "MyApp" on your desktop.
+  (The app also starts by itself when the computer turns on.)
+- Address in the browser:  http://localhost:3000
+
+THE FILES IN THIS FOLDER
+------------------------
+  start.bat    Open MyApp (same as the desktop shortcut)
+  stop.bat     Stop MyApp. Your data is kept.
+  update.bat   Install the newest version (when your developer tells you)
+  backup.bat   Save a backup now (also runs every day at 12:00)
+  restore.bat  Drag a file from "backups" onto it to restore that backup
+  create-admin.bat  Make the first admin account (your developer does this once)
+
+  Do NOT delete or edit: .env, docker-compose.yml, _common.bat
+
+IMPORTANT
+---------
+- Your data lives on this computer. Copy the "backups" folder to a
+  USB drive or Google Drive regularly.
+- Do not uninstall Docker Desktop.
+- If anything shows [ERROR], take a screenshot and send it to your developer.
