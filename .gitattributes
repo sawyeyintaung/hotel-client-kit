@@ -1,0 +1,10 @@
+# The client's computer clones this repo, on Windows or Mac. Pin each script's
+# line endings so git's own settings there can't break them:
+# cmd.exe needs CRLF, bash needs LF.
+*.bat      text eol=crlf
+*.command  text eol=lf
+*.sh       text eol=lf
+*.yml      text eol=lf
+.env.example text eol=lf
+READ-ME-FIRST.txt     text eol=crlf
+READ-ME-FIRST-MAC.txt text eol=lf

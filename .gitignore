@@ -1,4 +1,4 @@
-# Secrets: the client's real settings, including the GHCR token
+# Secrets: the client's real settings
 .env
 !.env.example
 

@@ -1,210 +1,141 @@
-# Deploying MyApp to a client's Windows PC
+# hotel-client-kit
 
-> **Set up for the hotel app (hotel-frontend-next + hotel-backend).** Where this differs from the generic guide below:
->
-> - The Dockerfiles and CI workflows live in the two repos (Part B, Option 2). This kit's `frontend/` and `backend/` folders are the unused generic templates. `release.sh` builds straight from the repos.
-> - Images: `ghcr.io/sawyeyintaung/hotel-frontend` and `hotel-backend`.
-> - **Skip A2 and A3.** The browser never calls the backend, so there's no `NEXT_PUBLIC_API_URL`, no port 4000 and no published backend port. The frontend's server uses `API_URL=http://backend:8000/api`. The backend migrates the database itself on every start (Prisma 8, `db migrate --to db`).
-> - `client-package/.env` needs more keys than C2 lists. See `client-package/.env.example`, especially **`BETTER_AUTH_SECRET`** (`openssl rand -hex 32`); compose refuses to start without it.
-> - After the first install, run **`create-admin.bat`** on the client PC to make the first admin. Optionally run `docker compose exec backend npm run db:seed` for the hotel's room types, rooms, service rates and payment methods.
-> - Using it from other PCs: add `http://<client-PC-IP>:3000` to `CORS_ORIGIN` in `.env`. No rebuild needed.
-
-Next.js + Express + PostgreSQL, running in Docker on the client's own computer.
-The images go through GitHub Container Registry (GHCR, free private images).
+What runs the hotel app on the client's Windows PC or Mac: the `docker-compose.yml`, the install, update and backup scripts, and the client's guides. Postgres, [hotel-backend](https://github.com/sawyeyintaung/hotel-backend) and [hotel-frontend-next](https://github.com/sawyeyintaung/hotel-frontend-next) run in Docker Desktop, from **public images on Docker Hub**.
 
 ```
-YOUR MACHINE                       GHCR (cloud)                 CLIENT PC
-release.sh  --- build & push --->  myapp-frontend   <--- pull --- install.bat / update.bat
-                                   myapp-backend                  (Docker Desktop runs it)
+APP REPOS (you build + push)       DOCKER HUB (public)             CLIENT PC OR MAC
+hotel-backend        ----------->  <user>/hotel-backend   <--pull-- install / update script
+hotel-frontend-next  ----------->  <user>/hotel-frontend           (Docker Desktop runs it)
 ```
 
-Folder layout this package expects:
+This repo is only the client side, and **it is public**: the client's computer clones it from GitHub with no login, and its update script pulls kit changes. Nothing secret is in it; the client's `.env` and `backups/` are gitignored. Each image is built and pushed from its own repo: see hotel-backend's `docs/docker.md` and hotel-frontend-next's `docs/docker.md`.
+
+The repo has the same scripts twice: `.bat` for Windows and `.command` for Mac (double-click in Finder; they share `_common.sh`). Each guide, `READ-ME-FIRST.txt` and `READ-ME-FIRST-MAC.txt`, only covers its own set. `.gitattributes` pins their line endings (CRLF for `.bat`, LF for the Mac scripts), so a clone works whatever git's settings are on that computer.
+
+## The images are public
+
+Anyone can pull them, so the client needs no login. No secret is inside: `.dockerignore` keeps every `.env` out, and every setting comes from the client's `.env` when the containers start. But the compiled code and migrations are readable by anyone who pulls them.
+
+## How the containers fit together
+
+`docker-compose.yml` runs three services as the compose project `myapp`:
 
 ```
-hotel-deploy/
-├─ frontend/        <- your Next.js app + Dockerfile + .dockerignore
-├─ backend/         <- your Express app + Dockerfile + .dockerignore
-├─ client-package/  <- what you zip and send to the client
-├─ release.sh       <- Mac/Linux (or Git Bash on Windows)
-└─ release.bat      <- Windows
+Browser ──:3000──▶ frontend ──http://backend:8000/api──▶ backend ──db:5432──▶ db ──▶ volume myapp_pgdata
 ```
 
-Copy your app's code into `frontend/` and `backend/`, keeping the Dockerfiles I made.
+| Service    | Image                         | What it does                                                                                       |
+| ---------- | ----------------------------- | -------------------------------------------------------------------------------------------------- |
+| `db`       | `postgres:17`                 | The database. Its data lives in the `pgdata` volume, at `/var/lib/postgresql/data`.                |
+| `backend`  | `<user>/hotel-backend`        | On every start: migrates the database, creates the first admins if there are none, then serves the API. |
+| `frontend` | `<user>/hotel-frontend`       | The app staff use. The only service with a port on the PC: `3000`.                                  |
 
----
+- **Start order:** `db` must be healthy (`pg_isready`) before `backend` starts, and `frontend` starts once `backend` has *started*, not once it's ready. Right after a start or update, the app can show errors for a few seconds while the backend migrates.
+- **They find each other by service name** (`db`, `backend`) on compose's private network. `backend` and `db` have no port on the PC, so nothing outside Docker can reach them.
+- **All three restart by themselves** (`restart: unless-stopped`): after a crash, and when Docker Desktop starts at login. `stop.bat` / `stop.command` stops them until the start script or the shortcut runs.
 
-## Part A: one-time setup on your machine
+### The volume holds all the hotel's data
 
-### A1. Install Docker
-Install Docker Desktop (Mac/Windows) or Docker Engine (Linux).
+Every guest, stay, payment and staff account is in one Docker volume, `myapp_pgdata`. The containers can be deleted and recreated, as every update does, and the data stays.
 
-### A2. Prepare the Next.js app
-In `next.config.js` / `next.config.mjs` / `next.config.ts`:
+**Safe — the data stays:**
 
-```js
-const nextConfig = { output: 'standalone' };
+- Running `update.bat`, `start.bat` or `stop.bat` (`docker compose down`)
+- Restarting the PC
+- Updating the kit with `git pull` (`.env` and `backups/` are gitignored)
+
+**Not safe — the data is lost:**
+
+- **`docker compose down -v`** — `-v` deletes the volume. Never run it on the client PC.
+- **Uninstalling Docker Desktop, or "Reset to factory defaults"** — deletes every volume.
+
+**Looks lost, but isn't:**
+
+- **Renaming `name: myapp` in `docker-compose.yml`** — the volume's name comes from the project name, so compose creates a new, empty `<newname>_pgdata` and the app starts on an empty database. The old data is still in `myapp_pgdata`, just unused. That's why the project and scripts still say "MyApp".
+
+- **The `backups` folder is the only copy outside Docker.** `backup.bat` dumps the database into it daily and before every update, and `restore.bat` loads a dump back.
+- **`POSTGRES_PASSWORD` (and `POSTGRES_USER` / `POSTGRES_DB`) are applied only when the volume is first created.** After that Postgres keeps them, so changing them in `.env` makes the backend fail to log in.
+- **A new major Postgres version (`postgres:18`) can't open this volume.** Changing the tag needs a dump with `backup.bat`, a fresh volume and a restore with `restore.bat`. The 17 line keeps getting security fixes on the same tag.
+
+Check the volume on the client PC with `docker volume ls` (look for `myapp_pgdata`) and its size with `docker system df -v`.
+
+## First install at the client
+
+You do steps 1–3 on the client's computer; the client's guide (`READ-ME-FIRST.txt`, or `READ-ME-FIRST-MAC.txt`) starts at step 4.
+
+1. **Install git**, if it isn't there:
+   - Windows: `winget install -e --id Git.Git` in a terminal, or the installer from git-scm.com. Open a new terminal afterwards.
+   - Mac: run `git --version` in Terminal. If git is missing, macOS offers to install the developer tools; click Install.
+2. **Clone the kit** to the folder the guides use:
+   ```
+   git clone https://github.com/sawyeyintaung/hotel-client-kit.git C:\MyApp     # Windows
+   git clone https://github.com/sawyeyintaung/hotel-client-kit.git ~/MyApp      # Mac
+   ```
+   The repo is public, so this needs no login.
+3. **Create `.env`** in that folder from `.env.example` (`copy .env.example .env` on Windows, `cp .env.example .env` on a Mac) and fill it in. It never comes from GitHub. Type it there, or bring it from your password manager; don't send it by chat or email.
+   - `DOCKERHUB_USER`: the Docker Hub account you push the images to.
+   - `POSTGRES_PASSWORD`: **never change it after the first install.** Postgres keeps the first one, and the backend would fail to connect.
+   - `BETTER_AUTH_SECRET`: make one with `openssl rand -hex 32`.
+   - `SEED_ADMIN_USERNAMES` and `SEED_ADMIN_PASSWORD`: the first admins. The first start creates them on the empty database, and after that they're ignored. Each admin changes the password after logging in.
+   - Values use letters and numbers only (no `& % ! ^` or spaces): the scripts read this file.
+4. **On a Windows PC:** double-click `install.bat`. The first run installs Docker Desktop. After a restart and accepting Docker's terms, run it again: it pulls the images, starts everything, adds a **MyApp** desktop shortcut and schedules a daily backup at 12:00 (Task Scheduler).
+5. **On a Mac:** double-click `install.command`. The first run installs Docker Desktop (with Homebrew if the Mac has it, otherwise it opens the download page). After opening Docker once and accepting its terms, run it again: it pulls the images, starts everything, puts a **MyApp** link on the desktop and schedules the daily backup at 12:00 (a launchd job, `~/Library/LaunchAgents/com.myapp.backup.plist`). Git keeps the scripts' run permission, and cloned files aren't marked as downloaded, so macOS shouldn't block them.
+6. Log in as an admin and enter the hotel's room types, rooms, service rates and payment methods.
+
+**Keep a copy of the client's `.env`** somewhere safe, like a password manager. It's not in git, and you need it to reinstall or move to a new PC.
+
+The app starts at login on both (Docker Desktop autostart and `restart: unless-stopped`).
+
+> Docker Desktop needs hardware virtualization and WSL 2. If it shows a "virtualization" error, it has to be turned on in the BIOS, a one-time job for you or a technician.
+
+## Updating the client
+
+Once you've pushed new images (`1.2.0` and `latest`) from the app repos, tell the client to double-click **`update.bat`** (Mac: **`update.command`**). It:
+
+1. **Pulls this kit from GitHub** (`git pull --ff-only`), so script and `docker-compose.yml` changes arrive too. If git is missing or the pull fails, it warns and carries on with the images.
+2. Backs up the database.
+3. Pulls the `latest` images and restarts. On start, the backend migrates the database by itself.
+
+A pull can change the update script itself, so it guards against that: `update.bat` runs a copy of itself from `%TEMP%`, and `update.command` keeps its body in a function that bash reads whole before running. A changed update script takes effect from the next update.
+
+**Roll back:** set `APP_VERSION=1.1.0` in the client's `.env` and run the update script. Both images must exist with that tag. Once the fix is released, set it back to `latest`, or every update keeps installing 1.1.0.
+
+**Which version is the client on?** In the app's folder (`C:\MyApp`, or `~/MyApp` on a Mac). This reads the version label the build command sets:
+
+```
+docker inspect --format "{{index .Config.Labels \"org.opencontainers.image.version\"}}" myapp-backend-1
 ```
 
-Without this setting, the frontend image won't build. If you have no `public/` folder, create an empty one.
+## Changing this kit
 
-Use the two API URLs:
-- In **browser** code: `process.env.NEXT_PUBLIC_API_URL` (baked in at build time, `http://localhost:4000`)
-- In **server** code (SSR, server actions, route handlers): `process.env.API_URL_INTERNAL` (`http://backend:4000`)
+Commit and push to `main`. The client gets it on their next update, or right away with `git pull` in the app's folder. `.env` and `backups/` are gitignored, so a pull never touches them.
 
-### A3. Prepare the Express app
-- `package.json` must have a `"start"` script, e.g. `"start": "node index.js"`
-  (with TypeScript: `"build": "tsc"` and `"start": "node dist/index.js"`).
-- Listen on `process.env.PORT` (4000).
-- Connect with `process.env.DATABASE_URL`.
-- Enable CORS for `http://localhost:3000`, because the browser calls port 4000 from port 3000:
-  ```js
-  app.use(require('cors')({ origin: 'http://localhost:3000' }));
-  ```
-- **Create the tables when the app starts** (run your migrations on startup, e.g. Prisma
-  `prisma migrate deploy`, Knex `migrate.latest()`, or `CREATE TABLE IF NOT EXISTS`).
-  The client's database starts empty, and nobody will run migrations by hand.
+- **Everything on `main` is public and reaches every client.** Test a change on your own computer first.
+- **Push images before a kit change that needs them.** An update pulls the kit first, then the images, so both arrive together; but a client who updates in between gets the new kit with the old images.
+- **Don't edit kit files on a client's computer.** Per-client settings belong in their `.env`. A locally changed file makes `git pull --ff-only` refuse, and the update then warns that it couldn't update MyApp's files. Run `git status` in the app's folder to see what changed.
+- **A new required setting** (a new `${NAME:?…}` in `docker-compose.yml`) must be added to every client's `.env` before their next update, or compose refuses to start. Add it to `.env.example` too.
 
-### A4. Test locally first
-Use the dev `docker-compose.yml` from earlier (`build:` version) and run
-`docker compose up --build`. Fix everything here before involving the client.
+A new environment variable the app reads goes in that app repo's `.env.example`, and in `docker-compose.yml` and `.env.example` here if the client needs it.
 
-### A5. Create a GitHub token for pushing
-GitHub → Settings → Developer settings → Personal access tokens → **Tokens (classic)** →
-Generate new token → tick **`write:packages`** → copy it.
+## Backups
 
-```bash
-echo YOUR_PUSH_TOKEN | docker login ghcr.io -u your-github-username --password-stdin
-```
-
-### A6. Edit the release script
-In `release.sh` (or `release.bat`), set `OWNER` to your GitHub username, **all lowercase**.
-
----
-
-## Part B: release a version
-
-### Option 1: manually from your machine
-
-```bash
-chmod +x release.sh      # first time only
-./release.sh 1.0.0       # Windows: release.bat 1.0.0
-```
-
-This builds both images for `linux/amd64` (normal Windows PCs; works even from an
-Apple Silicon Mac) and pushes two tags each: `1.0.0` and `latest`.
-
-Check that they appear at `https://github.com/your-github-username?tab=packages`.
-They are **private** by default. Keep them that way.
-
-### Option 2: automatic with GitHub Actions (two repos)
-
-With CI, GitHub builds the images for you, so you don't need `release.sh` or a push token.
-
-1. Each repo should have its `Dockerfile` and `.dockerignore` in the **repo root**.
-2. Copy the workflow files:
-   - `ci/frontend-repo/.github/workflows/docker-publish.yml` → frontend repo, same path
-   - `ci/backend-repo/.github/workflows/docker-publish.yml` → backend repo, same path
-3. Both repos must belong to the **same GitHub account or organization**, because the
-   client's `.env` has one `GHCR_OWNER`.
-4. (Optional) In the frontend repo: Settings → Secrets and variables → Actions →
-   **Variables** → add `API_URL`. Without it, `http://localhost:4000` is used.
-5. Push to `main`. You can watch it run in the **Actions** tab (about 2–5 min).
-
-What gets pushed:
-
-| You do | Image tags |
-|---|---|
-| push to `main` | `latest` + `sha-abc1234` |
-| `git tag v1.2.0 && git push --tags` | `1.2.0` + `sha-abc1234` |
-
-The client's `update.bat` always pulls `latest`, so **anything merged to `main` reaches
-the client on their next update**. Protect `main` (require a PR) and test before merging.
-To roll back, set `APP_VERSION` in the client's `.env` to a version tag or `sha-abc1234`.
-
-> Note: with two repos, `latest` frontend and backend can be from different moments.
-> If an update changes the API in both, merge the backend first, wait for its build to
-> finish, then merge the frontend, and only then tell the client to update.
-
-**Package access:** images pushed by Actions are private and owned by your account, so
-the client's `read:packages` token from Part C can pull them. If you push under an
-**organization**, create that token on an account that is a member of the org.
-
----
-
-## Part C: prepare the client package (first time only)
-
-### C1. Create a read-only token for the client
-New classic token, tick **only `read:packages`**, no expiry (or a long one).
-This token can only *download* your images. It can't change anything.
-
-### C2. Fill in `client-package/.env`
-```
-GHCR_OWNER=your-github-username
-GHCR_USER=your-github-username
-GHCR_TOKEN=ghp_the_read_only_token
-POSTGRES_PASSWORD=SomeStrongPassword123
-```
-Use only letters and numbers (no `& % ! ^` or spaces), because the .bat scripts read this file.
-**Never change `POSTGRES_PASSWORD` after the first install.** Postgres keeps the original
-password, and the backend will fail to connect.
-
-### C3. Zip and send
-Zip the whole `client-package` folder (make sure the hidden `.env` file is included) and
-share it via Google Drive. Tell the client to follow `READ-ME-FIRST.txt`.
-
----
-
-## Part D: what the client does
-
-1. Extracts to `C:\MyApp`.
-2. Double-clicks `install.bat`. On the first run it installs Docker Desktop via winget.
-   The client then restarts, opens Docker Desktop once, clicks Accept, and runs
-   `install.bat` again.
-3. The second run: logs in to GHCR → pulls images → starts everything → creates a
-   **MyApp** desktop shortcut → schedules a daily backup at 12:00 → opens the browser.
-
-After that, the app starts automatically with Windows (Docker Desktop autostart +
-`restart: unless-stopped`). The desktop shortcut also starts Docker if needed.
-
-> Docker Desktop needs hardware virtualization and WSL 2. On most modern PCs it works
-> out of the box. If Docker shows a "virtualization" error, it must be enabled in the BIOS.
-> That's a one-time job for you or a technician, not the client.
-
----
-
-## Part E: shipping updates
-
-1. You: `./release.sh 1.1.0`
-2. Tell the client: "double-click **update.bat**".
-   It backs up the database first, then pulls `latest`, restarts, and cleans old images.
-
-**Roll back:** set `APP_VERSION=1.0.0` in the client's `.env`, then run `update.bat`.
-
-You only resend the zip if `docker-compose.yml` or the scripts change. In that case,
-tell the client to replace the files but **keep the `backups` folder and `.env`**.
-
----
-
-## Part F: backups
-
-- `backup.bat` runs daily at 12:00 (when the PC is on) and before every update.
-- Files go to `C:\MyApp\backups\backup-YYYY-MM-DD_HHMM.sql`. Files older than 30 days are deleted.
-- **Restore:** drag a `.sql` file onto `restore.bat` and type `YES`.
-- The data only exists on the client's PC. Ask them to copy `backups` to Google Drive or a USB drive regularly.
-
----
+- `backup.bat` / `backup.command` runs daily at 12:00 (when the computer is on and awake) and before every update, into `backups/backup-YYYY-MM-DD_HHMM.sql` in the app's folder. Files older than 30 days are deleted. On a Mac, the daily run's output goes to `backups/backup.log`.
+- **Restore on Windows:** drag a `.sql` file onto `restore.bat` and type `YES`.
+- **Restore on a Mac:** double-click `restore.command`, pick a backup by number and type `YES`.
+- The data exists only on the client's PC. Ask them to copy `backups` to Google Drive or a USB drive regularly.
 
 ## Troubleshooting
 
-| Problem | Fix |
-|---|---|
-| `install.bat` closes instantly | Make sure the zip was extracted. Scripts can't run from inside a zip. |
-| "unauthorized" on pull | The token in `.env` is wrong or expired, or `GHCR_OWNER` isn't lowercase. |
-| `exec format error` | The image was built for ARM. Rebuild with `release.sh` (it forces `linux/amd64`). |
-| Page loads but API calls fail | CORS isn't enabled in Express, or `NEXT_PUBLIC_API_URL` was wrong at build time. |
-| Port 3000/4000 already in use | Another program uses it. Change the left side of `ports:` in `docker-compose.yml`. |
-| See logs on the client PC | In `C:\MyApp`, run `docker compose logs --tail 100 backend` |
+| Problem                                  | Fix                                                                                                    |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| "pull access denied" / "not found"       | `DOCKERHUB_USER` in `.env` is wrong, or the Docker Hub repository isn't public yet.                     |
+| "toomanyrequests" on pull                | Docker Hub's anonymous limit (100 pulls / 6 h per IP). Wait, or `docker login` on the client PC.       |
+| `exec format error` / "no matching manifest" | The image wasn't built for this computer's platform. Rebuild with `--platform linux/amd64,linux/arm64` (see the app repo's Docker doc). |
+| Mac: "cannot be opened" / "can't check it for malicious software" | macOS blocks downloaded scripts once: right-click the `.command` → Open → Open. |
+| Mac: "You do not have access privileges" or nothing happens | The `.command` files lost their run permission (copied instead of cloned). In Terminal: `chmod +x ~/MyApp/*.command`. |
+| Login page says it can't log in         | The address in the browser isn't in `CORS_ORIGIN` in `.env`.                                            |
+| "Add … to .env"                          | That setting is missing or empty in `.env`. Fill it in and run the script again.                        |
+| Port 3000 already in use                 | Change the left side of `ports:` in `docker-compose.yml`, and `APP_URL` / `CORS_ORIGIN` to match.       |
+| See logs on the client's computer        | In the app's folder: `docker compose logs --tail 100 backend`                                           |
 
-**Using it from other PCs in the office:** browser code uses `localhost:4000`, which means
-"this computer". For other devices, rebuild with `API_URL=http://<client-PC-IP>:4000`,
-add that origin to CORS, and give the client PC a fixed IP.
+**Using it from other PCs in the office:** give the client PC a fixed IP and add `http://<client-PC-IP>:3000` to `CORS_ORIGIN` in `.env`. No rebuild needed.

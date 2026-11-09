@@ -18,7 +18,7 @@ services:
   # hotel-backend. Migrates the database to the newest schema on every start.
   # No ports: only the frontend's server calls it, never the browser.
   backend:
-    image: ghcr.io/${GHCR_OWNER}/hotel-backend:${APP_VERSION:-latest}
+    image: docker.io/${DOCKERHUB_USER:?Add DOCKERHUB_USER to .env}/hotel-backend:${APP_VERSION:-latest}
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -32,13 +32,17 @@ services:
       # The address staff open in the browser. Logins from any other address
       # are refused. Comma-separated for more than one.
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      # Created on the first start, while the database has no admin. Ignored
+      # after that, so changing them later resets nobody.
+      SEED_ADMIN_USERNAMES: ${SEED_ADMIN_USERNAMES:?Add SEED_ADMIN_USERNAMES to .env}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:?Add SEED_ADMIN_PASSWORD to .env}
     depends_on:
       db:
         condition: service_healthy
 
   # hotel-frontend-next
   frontend:
-    image: ghcr.io/${GHCR_OWNER}/hotel-frontend:${APP_VERSION:-latest}
+    image: docker.io/${DOCKERHUB_USER:?Add DOCKERHUB_USER to .env}/hotel-frontend:${APP_VERSION:-latest}
     restart: unless-stopped
     environment:
       API_URL: http://backend:8000/api
