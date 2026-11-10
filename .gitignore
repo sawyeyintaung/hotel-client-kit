@@ -4,5 +4,9 @@
 
 # Client data
 backups/
+# The hotel's setup file (rooms, prices), and any copy of it: only the
+# example is committed
+setup/*
+!setup/setup.example.json
 
 .DS_Store

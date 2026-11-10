@@ -1,0 +1,16 @@
+{
+  "paymentMethods": ["Cash", "Card", "Bank transfer", "KBZPay", "WavePay"],
+  "roomTypes": [
+    { "name": "Double Bed Room", "pax": 2, "price": 60000 },
+    { "name": "Family Room", "pax": 4, "price": 110000 }
+  ],
+  "rooms": [
+    { "roomNumber": "101", "floor": 1, "roomType": "Double Bed Room" },
+    { "roomNumber": "102", "floor": 1, "roomType": "Double Bed Room" },
+    { "roomNumber": "201", "floor": 2, "roomType": "Family Room" }
+  ],
+  "serviceRates": [
+    { "name": "Breakfast", "price": 8000 },
+    { "name": "Extra bed", "price": 15000 }
+  ]
+}

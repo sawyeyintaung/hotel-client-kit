@@ -36,6 +36,11 @@ services:
       # after that, so changing them later resets nobody.
       SEED_ADMIN_USERNAMES: ${SEED_ADMIN_USERNAMES:?Add SEED_ADMIN_USERNAMES to .env}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:?Add SEED_ADMIN_PASSWORD to .env}
+    # The hotel's setup (setup/setup.json: rooms, prices, payment methods),
+    # read on the first start while the hotel has none. Gitignored, so it
+    # stays on this computer; setup/setup.example.json shows the format.
+    volumes:
+      - ./setup:/app/setup:ro
     depends_on:
       db:
         condition: service_healthy

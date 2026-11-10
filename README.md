@@ -27,7 +27,7 @@ Browser ──:3000──▶ frontend ──http://backend:8000/api──▶ bac
 | Service    | Image                         | What it does                                                                                       |
 | ---------- | ----------------------------- | -------------------------------------------------------------------------------------------------- |
 | `db`       | `postgres:17`                 | The database. Its data lives in the `pgdata` volume, at `/var/lib/postgresql/data`.                |
-| `backend`  | `<user>/hotel-backend`        | On every start: migrates the database, creates the first admins if there are none, then serves the API. |
+| `backend`  | `<user>/hotel-backend`        | On every start: migrates the database, creates the first admins if there are none, fills an empty hotel from `setup/setup.json`, then serves the API. |
 | `frontend` | `<user>/hotel-frontend`       | The app staff use. The only service with a port on the PC: `3000`.                                  |
 
 - **Start order:** `db` must be healthy (`pg_isready`) before `backend` starts, and `frontend` starts once `backend` has *started*, not once it's ready. Right after a start or update, the app can show errors for a few seconds while the backend migrates.
@@ -78,9 +78,14 @@ You do steps 1–3 on the client's computer; the client's guide (`READ-ME-FIRST.
    - `BETTER_AUTH_SECRET`: make one with `openssl rand -hex 32`.
    - `SEED_ADMIN_USERNAMES` and `SEED_ADMIN_PASSWORD`: the first admins. The first start creates them on the empty database, and after that they're ignored. Each admin changes the password after logging in.
    - Values use letters and numbers only (no `& % ! ^` or spaces): the scripts read this file.
+   - **The hotel's setup (optional):** in the `setup` folder, copy `setup.example.json` to `setup.json` (`copy setup\setup.example.json setup\setup.json` on Windows, `cp setup/setup.example.json setup/setup.json` on a Mac). Fill in the hotel's payment methods, room types (name, pax, price), rooms (number, floor and room type by name) and service rates. The first start creates them all on the empty database. It's gitignored, like `.env`, so the prices never reach GitHub. Without it, staff enter them in the dashboard (step 6).
 4. **On a Windows PC:** double-click `install.bat`. The first run installs Docker Desktop. After a restart and accepting Docker's terms, run it again: it pulls the images, starts everything, adds a **MyApp** desktop shortcut and schedules a daily backup at 12:00 (Task Scheduler).
 5. **On a Mac:** double-click `install.command`. The first run installs Docker Desktop (with Homebrew if the Mac has it, otherwise it opens the download page). After opening Docker once and accepting its terms, run it again: it pulls the images, starts everything, puts a **MyApp** link on the desktop and schedules the daily backup at 12:00 (a launchd job, `~/Library/LaunchAgents/com.myapp.backup.plist`). Git keeps the scripts' run permission, and cloned files aren't marked as downloaded, so macOS shouldn't block them.
-6. Log in as an admin and enter the hotel's room types, rooms, service rates and payment methods.
+6. Log in as an admin. With a setup file, check the room types, rooms, service rates and payment methods are there. Without one, enter them now.
+
+### The setup file
+
+`setup/setup.json` is read only while the hotel is empty: each part (payment methods, room types with their rooms, service rates) only fills an empty table, so nothing entered in the app is ever overwritten. After the first start, editing or deleting the file changes nothing; change the setup in the dashboard. If the file is broken (not JSON, a missing price, a room whose type isn't in the file), the backend stops on the first start and creates nothing. The reason is in `docker compose logs backend`; fix the file and run the start script again. The backend's `docs/docker.md` has the full format.
 
 **Keep a copy of the client's `.env`** somewhere safe, like a password manager. It's not in git, and you need it to reinstall or move to a new PC.
 
@@ -135,6 +140,7 @@ A new environment variable the app reads goes in that app repo's `.env.example`,
 | Mac: "You do not have access privileges" or nothing happens | The `.command` files lost their run permission (copied instead of cloned). In Terminal: `chmod +x ~/MyApp/*.command`. |
 | Login page says it can't log in         | The address in the browser isn't in `CORS_ORIGIN` in `.env`.                                            |
 | "Add … to .env"                          | That setting is missing or empty in `.env`. Fill it in and run the script again.                        |
+| App won't open after the first install, log says "Setting up the hotel failed" | `setup/setup.json` has a mistake; the log names each one. Fix the file and run the start script again. |
 | Port 3000 already in use                 | Change the left side of `ports:` in `docker-compose.yml`, and `APP_URL` / `CORS_ORIGIN` to match.       |
 | See logs on the client's computer        | In the app's folder: `docker compose logs --tail 100 backend`                                           |
 
