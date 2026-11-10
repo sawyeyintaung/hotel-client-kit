@@ -154,7 +154,7 @@ A new environment variable the app reads goes in that app repo's `.env.example`,
 | Login page says it can't log in         | The address in the browser isn't in `CORS_ORIGIN` in `.env`.                                            |
 | "Add … to .env"                          | That setting is missing or empty in `.env`. Fill it in and run the script again.                        |
 | App won't open after the first install, log says "Setting up the hotel failed" | `setup/setup.json` has a mistake; the log names each one. Fix the file and run the start script again. |
-| Port 3000 already in use                 | Change the left side of `ports:` in `docker-compose.yml`, and `APP_URL` / `CORS_ORIGIN` to match.       |
+| Port 3000 already in use                 | Set `FRONTEND_PORT` in `.env` to a free port (e.g. `3001`), and change the port in `APP_URL` / `CORS_ORIGIN` to match. |
 | See logs on the client's computer        | In the app's folder: `docker compose logs --tail 100 backend`                                           |
 
 **Using it from other PCs in the office:** give the client PC a fixed IP and add `http://<client-PC-IP>:3000` to `CORS_ORIGIN` in `.env`. No rebuild needed.

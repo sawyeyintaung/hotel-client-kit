@@ -31,7 +31,7 @@ services:
       BETTER_AUTH_URL: http://backend:8000
       # The address staff open in the browser. Logins from any other address
       # are refused. Comma-separated for more than one.
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:${FRONTEND_PORT:-3000}}
       # Created on the first start, while the database has no admin. Ignored
       # after that, so changing them later resets nobody.
       SEED_ADMIN_USERNAMES: ${SEED_ADMIN_USERNAMES:?Add SEED_ADMIN_USERNAMES to .env}
@@ -53,8 +53,10 @@ services:
       API_URL: http://backend:8000/api
     depends_on:
       - backend
+    # FRONTEND_PORT: the port on this computer (the app inside always uses 3000).
+    # The backend has none: only the frontend calls it, inside Docker.
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT:-3000}:3000"
 
 volumes:
   pgdata:
