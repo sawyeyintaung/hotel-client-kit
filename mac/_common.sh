@@ -6,7 +6,10 @@
 # with a minimal PATH
 export PATH="/usr/local/bin:/opt/homebrew/bin:/Applications/Docker.app/Contents/Resources/bin:$PATH"
 
-APPDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# The scripts live in mac/; .env, docker-compose.yml, backups and setup are
+# in MyApp's folder, one level up.
+SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APPDIR="$(cd "$SCRIPTDIR/.." && pwd)"
 cd "$APPDIR" || exit 1
 
 fail() {
@@ -27,7 +30,7 @@ eval "$(tr -d '\r' < .env)"
 set +a
 
 if ! command -v docker >/dev/null 2>&1; then
-  fail "Docker is not installed. Please run install.command first."
+  fail "Docker is not installed. Please run mac/install.command first."
 fi
 
 if ! docker info >/dev/null 2>&1; then

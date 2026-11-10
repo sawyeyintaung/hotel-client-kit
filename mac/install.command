@@ -1,6 +1,8 @@
 #!/bin/bash
 # MyApp installer for Mac. The Mac version of install.bat.
-APPDIR="$(cd "$(dirname "$0")" && pwd)"
+# This script is in mac/; MyApp's folder is one level up.
+SCRIPTDIR="$(cd "$(dirname "$0")" && pwd)"
+APPDIR="$(cd "$SCRIPTDIR/.." && pwd)"
 cd "$APPDIR" || exit 1
 export PATH="/usr/local/bin:/opt/homebrew/bin:/Applications/Docker.app/Contents/Resources/bin:$PATH"
 
@@ -27,14 +29,14 @@ if ! command -v docker >/dev/null 2>&1; then
   echo "  1. Open \"Docker\" from Applications."
   echo "  2. Click \"Accept\" on the terms. You can skip sign-in."
   echo "  3. Turn on: Settings > General > \"Start Docker Desktop when you sign in\"."
-  echo "  4. Double-click install.command again."
+  echo "  4. Double-click install.command in the mac folder again."
   echo "================================================"
   read -r -p "Press Return to close."
   exit 0
 fi
 
 # ---- Step 2: start Docker and load settings ----
-. "$APPDIR/_common.sh"
+. "$SCRIPTDIR/_common.sh"
 
 # ---- Step 3: download and start the app ----
 echo "Downloading the app. First time can take several minutes..."
@@ -43,7 +45,7 @@ docker compose up -d || fail "Could not start the app."
 
 # ---- Step 4: desktop shortcut + daily backup ----
 echo 'Creating desktop shortcut "MyApp"...'
-ln -sf "$APPDIR/start.command" "$HOME/Desktop/MyApp"
+ln -sf "$SCRIPTDIR/start.command" "$HOME/Desktop/MyApp"
 
 echo "Scheduling a daily database backup at 12:00..."
 PLIST="$HOME/Library/LaunchAgents/com.myapp.backup.plist"
@@ -55,7 +57,7 @@ cat > "$PLIST" <<EOF
 <dict>
   <key>Label</key><string>com.myapp.backup</string>
   <key>ProgramArguments</key>
-  <array><string>/bin/bash</string><string>$APPDIR/backup.command</string></array>
+  <array><string>/bin/bash</string><string>$SCRIPTDIR/backup.command</string></array>
   <key>StartCalendarInterval</key>
   <dict><key>Hour</key><integer>12</integer><key>Minute</key><integer>0</integer></dict>
   <key>StandardOutPath</key><string>$APPDIR/backups/backup.log</string>

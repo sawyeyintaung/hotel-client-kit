@@ -13,7 +13,10 @@ if /i not "%~1"=="--from-copy" (
 )
 
 title MyApp - Update
-set "APPDIR=%~2"
+rem %2 is the windows\ folder this script came from; MyApp's folder
+rem (with .git, .env and docker-compose.yml) is one level up.
+set "SCRIPTS=%~2"
+for %%I in ("%SCRIPTS%..") do set "APPDIR=%%~fI\"
 cd /d "%APPDIR%"
 
 rem ---- MyApp's files: scripts and docker-compose.yml ----
@@ -33,11 +36,11 @@ if errorlevel 1 (
 )
 
 :images
-call "%APPDIR%_common.bat"
+call "%SCRIPTS%_common.bat"
 if errorlevel 1 goto fail
 
 echo Backing up your data before updating...
-call "%APPDIR%backup.bat"
+call "%SCRIPTS%backup.bat"
 if errorlevel 1 goto fail
 
 echo Downloading the latest version...

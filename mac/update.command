@@ -7,7 +7,9 @@
 # it, and the file can then change safely. A changed update.command takes
 # effect from the next update.
 main() {
-  APPDIR="$(cd "$(dirname "$0")" && pwd)"
+  # This script is in mac/; MyApp's folder (with .git) is one level up.
+  SCRIPTDIR="$(cd "$(dirname "$0")" && pwd)"
+  APPDIR="$(cd "$SCRIPTDIR/.." && pwd)"
   cd "$APPDIR" || exit 1
 
   # ---- MyApp's files: scripts and docker-compose.yml ----
@@ -22,10 +24,10 @@ main() {
   fi
 
   # Loaded after the pull, so a new _common.sh or .env change applies now
-  . "$APPDIR/_common.sh"
+  . "$SCRIPTDIR/_common.sh"
 
   echo "Backing up your data before updating..."
-  /bin/bash "$APPDIR/backup.command" || fail "The backup failed, so nothing was updated. Your data is safe."
+  /bin/bash "$SCRIPTDIR/backup.command" || fail "The backup failed, so nothing was updated. Your data is safe."
 
   echo "Downloading the latest version..."
   docker compose pull || fail "Update failed. Your data is safe."

@@ -10,7 +10,8 @@ FIRST-TIME SETUP
    in a folder named:  MyApp
    (Ask them first if that folder isn't there.)
 
-2. Open the MyApp folder and double-click  install.command
+2. Open the MyApp folder, then the  mac  folder, and double-click
+   install.command
    - If macOS says it "cannot be opened" or "can't check it for malicious
      software": right-click install.command > Open > Open.
      (Or: System Settings > Privacy & Security > "Open Anyway".)
@@ -21,7 +22,7 @@ FIRST-TIME SETUP
    b. Click "Accept". You can skip signing in.
    c. In Docker: Settings > General > tick
       "Start Docker Desktop when you sign in to your computer".
-   d. Double-click install.command again.
+   d. Double-click install.command (in the mac folder) again.
 
 4. When it finishes, MyApp opens in your browser.
    A "MyApp" shortcut is placed on your desktop.
@@ -32,16 +33,17 @@ EVERY DAY
   (The app also starts by itself when you log in to the Mac.)
 - Address in the browser:  http://localhost:3000
 
-THE FILES IN THIS FOLDER
-------------------------
+THE FILES IN THE mac FOLDER
+---------------------------
   start.command    Open MyApp (same as the desktop shortcut)
   stop.command     Stop MyApp. Your data is kept.
   update.command   Install the newest version (when your developer tells you)
   backup.command   Save a backup now (also runs every day at 12:00)
   restore.command  Restore a backup: it lists them and asks which one
 
-  The .bat files are for Windows. You can ignore them.
-  Do NOT delete or edit: .env, docker-compose.yml, _common.sh
+  The windows folder is for Windows PCs. You can ignore it.
+  Do NOT delete or edit: .env and docker-compose.yml in the MyApp folder,
+  and _common.sh in the mac folder.
 
 IMPORTANT
 ---------

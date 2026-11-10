@@ -8,7 +8,7 @@ FIRST-TIME SETUP
 1. Your developer puts MyApp in:  C:\MyApp
    (Ask them first if that folder isn't there.)
 
-2. Open C:\MyApp and double-click  install.bat
+2. Open C:\MyApp, then the  windows  folder, and double-click  install.bat
    - If Windows shows "Windows protected your PC", click
      "More info" > "Run anyway".
 
@@ -18,7 +18,7 @@ FIRST-TIME SETUP
    c. Click "Accept". You can skip signing in.
    d. In Docker Desktop: Settings > General > tick
       "Start Docker Desktop when you sign in".
-   e. Double-click install.bat again.
+   e. Double-click install.bat (in the windows folder) again.
 
 4. When it finishes, MyApp opens in your browser.
    A "MyApp" shortcut is placed on your desktop.
@@ -29,15 +29,17 @@ EVERY DAY
   (The app also starts by itself when the computer turns on.)
 - Address in the browser:  http://localhost:3000
 
-THE FILES IN THIS FOLDER
-------------------------
+THE FILES IN THE windows FOLDER
+-------------------------------
   start.bat    Open MyApp (same as the desktop shortcut)
   stop.bat     Stop MyApp. Your data is kept.
   update.bat   Install the newest version (when your developer tells you)
   backup.bat   Save a backup now (also runs every day at 12:00)
   restore.bat  Drag a file from "backups" onto it to restore that backup
 
-  Do NOT delete or edit: .env, docker-compose.yml, _common.bat
+  The mac folder is for Mac computers. You can ignore it.
+  Do NOT delete or edit: .env and docker-compose.yml in C:\MyApp,
+  and _common.bat in the windows folder.
 
 IMPORTANT
 ---------

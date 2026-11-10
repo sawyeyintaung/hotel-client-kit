@@ -1,6 +1,8 @@
 @echo off
 title MyApp - Install
-set "APPDIR=%~dp0"
+rem This script is in windows\; MyApp's folder is one level up.
+set "SCRIPTS=%~dp0"
+for %%I in ("%~dp0..") do set "APPDIR=%%~fI\"
 cd /d "%APPDIR%"
 
 echo ================================================
@@ -13,7 +15,7 @@ where docker >nul 2>&1
 if errorlevel 1 goto installdocker
 
 rem ---- Step 2: start Docker and load settings ----
-call "%APPDIR%_common.bat"
+call "%SCRIPTS%_common.bat"
 if errorlevel 1 goto fail
 
 rem ---- Step 3: download and start the app ----
@@ -25,10 +27,10 @@ if errorlevel 1 goto fail
 
 rem ---- Step 4: desktop shortcut + daily backup ----
 echo Creating desktop shortcut "MyApp"...
-powershell -NoProfile -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut([Environment]::GetFolderPath('Desktop')+'\MyApp.lnk'); $s.TargetPath='%APPDIR%start.bat'; $s.WorkingDirectory='%APPDIR%'; $s.Save()"
+powershell -NoProfile -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut([Environment]::GetFolderPath('Desktop')+'\MyApp.lnk'); $s.TargetPath='%SCRIPTS%start.bat'; $s.WorkingDirectory='%APPDIR%'; $s.Save()"
 
 echo Scheduling a daily database backup at 12:00...
-schtasks /create /tn "MyApp Daily Backup" /tr "\"%APPDIR%backup.bat\"" /sc daily /st 12:00 /f >nul
+schtasks /create /tn "MyApp Daily Backup" /tr "\"%SCRIPTS%backup.bat\"" /sc daily /st 12:00 /f >nul
 
 echo.
 echo ================================================
@@ -64,7 +66,7 @@ echo   1. Restart your computer.
 echo   2. Open "Docker Desktop" from the Start menu.
 echo   3. Click "Accept" on the terms. You can skip sign-in.
 echo   4. Turn on: Settings - General - "Start Docker Desktop when you sign in".
-echo   5. Double-click install.bat again.
+echo   5. Double-click install.bat in the windows folder again.
 echo ================================================
 pause
 exit /b 0
